@@ -15,7 +15,8 @@ TARGET := webserver
 
 # Default target
 all: $(TARGET)
-
+run: $(TARGET)
+	./$(TARGET) 10339
 # Compile source files into object files
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
