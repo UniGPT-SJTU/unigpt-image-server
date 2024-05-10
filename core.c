@@ -4,15 +4,15 @@
 
 #include "config.h"
 #include "csapp.h"
+#include "core.h"
 
-
+static rio_t rio;
+static char buf[MAXLINE];
 
 void doit(int fd) {
-    int is_static;
-    struct stat sbuf;
-    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
-    char filename[MAXLINE];
-    rio_t rio;
+    char method[MAXLINE], uri[MAXLINE], version[MAXLINE];
+    char endpoint[MAXLINE] = {};
+    char filename[MAXLINE] = {};
 
     rio_readinitb(&rio, fd);
     rio_readlineb(&rio, buf, MAXLINE);
@@ -20,30 +20,32 @@ void doit(int fd) {
     printf("%s", buf);
     sscanf(buf, "%s %s %s", method, uri, version);
 
-    if(strcasecmp(method, "GET")) {
-        // 暂时只支持GET方法
-        clienterror(fd, method, "501", "Not Implemented", 
+    if(strcasecmp(method, "GET") && strcasecmp(method, "POST")) {
+        serve_error_response(fd, method, "405", "Method Not Allowed", 
             "Tiny does not implement this method");
         return;
     }
-    read_requesthdrs(&rio);
 
-    is_static = parse_uri(uri, filename);
-    if(stat(filename, &sbuf) < 0) {
-        clienterror(fd, filename, "404", "Not found", "Tiny couldn't find this file");
-    }
-
-    if(!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
-        clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
+    if(parse_uri(uri, endpoint, filename) == -1) {
+        serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
         return ;
     }
 
-    serve_static(fd, filename, sbuf.st_size);
+
+    if(!strcmp(endpoint, "file") && !strcasecmp(method, "GET") ) {
+        serve_static_file(fd, filename);
+        return ;
+    } else if(!strcmp(endpoint, "upload") && !strcasecmp(method, "POST")) {
+        serve_upload_file(fd, filename);
+        return ;
+    } else {
+        serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
+    }
 }
 
 
-void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) {
-    char buf[MAXLINE], body[MAXBUF];
+void serve_error_response(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg) {
+    char body[MAXBUF];
 
     sprintf(body, "<html><title>Tiny Error</title>");
     sprintf(body, "%s<body bgcolor=""ffffff"">\r\n", body);
@@ -60,29 +62,103 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     rio_writen(fd, body, strlen(body));
 }
 
-void read_requesthdrs(rio_t *rp) {
-    char buf[MAXLINE];
+void serve_json_response(int fd, char *status_code, char *json) {
+    int json_len = strlen(json);
 
+    sprintf(buf, "HTTP/1.0 %s OK\r\n", status_code);
+    sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+    sprintf(buf, "%sConnection: close\r\n", buf);
+    sprintf(buf, "%sContent-length: %d\r\n", buf, json_len);
+    sprintf(buf, "%sContent-type: application/json\r\n\r\n", buf);
+    rio_writen(fd, buf, strlen(buf));
+
+    printf("Response headers:\n");
+    printf("%s", buf);
+    
+    rio_writen(fd, json, json_len);
+}
+
+void read_requesthdrs(rio_t *rp) {
     rio_readlineb(rp, buf, MAXLINE);
     while(strcmp(buf, "\r\n")) {
         rio_readlineb(rp, buf, MAXLINE);
         printf("%s", buf);
     }
-    return;
 }
 
-int parse_uri(char *uri, char *filename) {
-    char *ptr;
-
-    strcpy(filename, ".");
-    strcat(filename, uri);
-    if(uri[strlen(uri) - 1] == '/') {
-        strcat(filename, "home.html");
+int parse_boundary_from_content_type(const char *content_type, char *boundary) {
+    if(sscanf(content_type, "multipart/form-data; boundary=%s", boundary) != 1) {
+        return -1;
     }
-    return 1;
+    return 0;
+}
+int read_request_headers(struct http_header_meta_data *meta_data) {
+    rio_readlineb(&rio, buf, MAXLINE);
+    while(strcmp(buf, "\r\n")) {
+        if(strstr(buf, "Content-Type:")) {
+            if(sscanf(buf, "Content-Type: %s", meta_data->content_type) != 1) {
+                return -1;
+            }
+        }
+        if(strstr(buf, "Content-Length:")) {
+            if(sscanf(buf, "Content-Length: %d", &meta_data->content_length) != 1) {
+                return -1;
+            }
+        }
+        rio_readlineb(&rio, buf, MAXLINE);
+    }
+    return 0;
 }
 
-void serve_static(int fd, char *filename, int filesize) {
+int parse_uri(char *uri, char *endpoint, char *filename) {
+    if(sscanf(uri, "/%[^/]/%s", endpoint, filename) != 2) {
+        // 解析uri失败
+        return -1;
+    }
+    if(strcmp(endpoint, "upload") && strcmp(endpoint, "file")) {
+        return -1;
+    }
+    return 0;
+}
+void serve_upload_file(int fd, char *filename) {
+    char request_body[MAXFILESIZE];
+
+    struct http_header_meta_data meta_data;
+    read_request_headers(&meta_data);
+
+    rio_readnb(&rio, request_body, meta_data.content_length);
+
+    // 去除request_body前4行
+    char *rawdata = request_body;
+    for(int i = 0; i < 4; i++) {
+        rawdata = strchr(rawdata, '\n') + 1;
+    }
+
+    // 将raw data写入文件
+    int filefd = open(filename, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+    write(filefd, rawdata, meta_data.content_length);
+    close(filefd);
+
+    char *json = "{\"status\": \"success\"}";
+    serve_json_response(fd, "200", json);
+}
+
+void serve_static_file(int fd, char *filename) {
+    struct http_header_meta_data meta_data;
+    read_request_headers(&meta_data);
+
+
+    struct stat sbuf;
+    if(stat(filename, &sbuf) < 0) {
+        serve_error_response(fd, filename, "404", "Not found", "No such file");
+        return ;
+    }
+
+    if(!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
+        serve_error_response(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
+        return ;
+    }
+    int filesize = sbuf.st_size;
     int srcfd;
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
