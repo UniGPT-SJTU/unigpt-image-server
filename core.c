@@ -12,6 +12,13 @@
 
 static rio_t rio;
 static char buf[MAXLINE];
+struct server_config server_config;
+
+void init_server_config(struct server_config *server_config, const char *protocol, const char *ip, const char *port) {
+    server_config->protocol = protocol;
+    server_config->ip = ip;
+    server_config->port = port;
+}
 
 void doit(int fd) {
     char method[MAXLINE], uri[MAXLINE], version[MAXLINE];
@@ -125,18 +132,19 @@ int parse_uri(char *uri, char *endpoint, char *filename) {
     return 0;
 }
 
-int gen_unique_file_name(char *filename) {
-    char new_file_name[MAXLINE] = FILE_TEMPLATE;
-    int tempfd = mkstemp(new_file_name);
+int gen_unique_str(char *dst) {
+    strcpy(dst, FILE_TEMPLATE);
+    int tempfd = mkstemp(dst);
     if(tempfd < 0) {
         return -1;
     }
     close(tempfd);
-    unlink(new_file_name);
-    strcat(new_file_name, ".png");
-    strcpy(filename, new_file_name);
+    unlink(dst);
     return 0;
 }
+
+
+
 void serve_upload_file(int fd, char *filename) {
     char request_body[MAXFILESIZE];
 
@@ -153,21 +161,23 @@ void serve_upload_file(int fd, char *filename) {
 
     // 将raw data写入文件
     char new_file_name[MAXLINE];
-    if(gen_unique_file_name(new_file_name) < 0) {
+    if(gen_unique_str(new_file_name) < 0) {
         serve_error_response(fd, filename, "500", "Internal Server Error", "Tiny couldn't generate unique file name");
         return ;
     }
-    int filefd = open(new_file_name, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-    write(filefd, rawdata, meta_data.content_length);
-    close(filefd);
+    sprintf(new_file_name, "%s_%s", new_file_name, filename);
+
+    int outputfd = open(new_file_name, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+    write(outputfd, rawdata, meta_data.content_length);
+    close(outputfd);
 
     char response[MAXLINE];
     sprintf(
         response, 
         "{\"status\": \"success\", \"url\": \"%s://%s:%s/file/%s\"}",
-        SERVER_PROTOCOL,
-        SERVER_IP,
-        SERVER_PORT,
+        server_config.protocol,
+        server_config.ip,
+        server_config.port,
         new_file_name
     );
 

@@ -14,6 +14,29 @@ struct http_header_meta_data {
 };
 
 
+/**
+ * @brief 服务器配置
+ * 
+ */
+struct server_config
+{
+    char *protocol;
+    char *ip;
+    char *port;
+};
+extern struct server_config server_config;
+
+
+/**
+ * @brief 初始化服务器配置
+ * 
+ * @param server_config_ptr  
+ * @param protocol 
+ * @param ip 
+ * @param port 
+ */
+void init_server_config(struct server_config* server_config_ptr, const char *protocol, const char *ip, const char *port);
+
 void doit(int fd);
 
 /**
@@ -63,8 +86,13 @@ int read_request_headers(struct http_header_meta_data *meta_data);
  */
 int parse_uri(char *uri, char *endpoint, char *filename);
 
-
-int gen_unique_file_name(char *filename);
+/**
+ * @brief 生成唯一的六位字符串
+ * 
+ * @param dst 输出的字符串
+ * @return int 成功返回0，失败返回-1
+ */
+int gen_unique_str(char *dst);
 
 /**
  * @brief 处理查看文件请求

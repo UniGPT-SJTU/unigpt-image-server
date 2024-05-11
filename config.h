@@ -8,5 +8,4 @@
 #define FILE_TEMPLATE "upload_XXXXXX"
 #define SERVER_PROTOCOL "http"
 #define SERVER_IP "10.119.12.131"
-#define SERVER_PORT "10339"
 #endif // CONFIG_H
