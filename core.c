@@ -1,6 +1,10 @@
 #include <strings.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include "config.h"
 #include "csapp.h"
@@ -120,6 +124,19 @@ int parse_uri(char *uri, char *endpoint, char *filename) {
     }
     return 0;
 }
+
+int gen_unique_file_name(char *filename) {
+    char new_file_name[MAXLINE] = FILE_TEMPLATE;
+    int tempfd = mkstemp(new_file_name);
+    if(tempfd < 0) {
+        return -1;
+    }
+    close(tempfd);
+    unlink(new_file_name);
+    strcat(new_file_name, ".png");
+    strcpy(filename, new_file_name);
+    return 0;
+}
 void serve_upload_file(int fd, char *filename) {
     char request_body[MAXFILESIZE];
 
@@ -135,12 +152,26 @@ void serve_upload_file(int fd, char *filename) {
     }
 
     // 将raw data写入文件
-    int filefd = open(filename, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+    char new_file_name[MAXLINE];
+    if(gen_unique_file_name(new_file_name) < 0) {
+        serve_error_response(fd, filename, "500", "Internal Server Error", "Tiny couldn't generate unique file name");
+        return ;
+    }
+    int filefd = open(new_file_name, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
     write(filefd, rawdata, meta_data.content_length);
     close(filefd);
 
-    char *json = "{\"status\": \"success\"}";
-    serve_json_response(fd, "200", json);
+    char response[MAXLINE];
+    sprintf(
+        response, 
+        "{\"status\": \"success\", \"url\": \"%s://%s:%s/file/%s\"}",
+        SERVER_PROTOCOL,
+        SERVER_IP,
+        SERVER_PORT,
+        new_file_name
+    );
+
+    serve_json_response(fd, "200", response);
 }
 
 void serve_static_file(int fd, char *filename) {

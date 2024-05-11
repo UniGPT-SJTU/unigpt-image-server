@@ -63,6 +63,9 @@ int read_request_headers(struct http_header_meta_data *meta_data);
  */
 int parse_uri(char *uri, char *endpoint, char *filename);
 
+
+int gen_unique_file_name(char *filename);
+
 /**
  * @brief 处理查看文件请求
  * 
@@ -86,5 +89,4 @@ void serve_upload_file(int fd, char *filename);
  * @param filetype 输出的文件类型
  */
 void get_filetype(char *filename, char *filetype);
-
 #endif // CORE_H
