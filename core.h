@@ -69,6 +69,18 @@ void serve_json_response(int fd, char *status_code, char *json);
 int parse_boundary_from_content_type(const char *content_type, char *boundary);
 
 /**
+ * @brief 从request_body中解析文件名,写入filename
+ * 
+ * @param request_body 
+ * @param filename 
+ * @return int 成功返回0，失败返回-1
+ */
+int parse_filename_from_request_body(const char *request_body, char *filename);
+
+
+int parse_raw_data_from_request_body(const char *request_body, char *raw_data, int *raw_data_size);
+
+/**
  * @brief 读取请求头，写入meta_data
  * 
  * @param meta_data 
@@ -80,11 +92,10 @@ int read_request_headers(struct http_header_meta_data *meta_data);
  * @brief 解析uri中的端点和文件名
  * 
  * @param uri 
- * @param endpoint 输出的端点
  * @param filename 输出的文件名
  * @return int 成功返回0，失败返回-1
  */
-int parse_uri(char *uri, char *endpoint, char *filename);
+int parse_static_filename_from_uri(char *uri, char *filename);
 
 /**
  * @brief 生成唯一的六位字符串
@@ -99,16 +110,17 @@ int gen_unique_str(char *dst);
  * 
  * @param fd 客户端连接的文件描述符
  * @param filename 文件名
+ * @return int 成功返回0，失败返回-1
  */
-void serve_static_file(int fd, char *filename);
+int serve_static_file(int fd, char *filename);
 
 /**
  * @brief 处理上传文件请求
  * 
  * @param fd 客户端连接的文件描述符
- * @param filename 上传的文件名
+ * @return int 成功返回0，失败返回-1
  */
-void serve_upload_file(int fd, char *filename);
+int serve_upload_file(int fd);
 
 /**
  * @brief 获取文件类型
@@ -117,4 +129,6 @@ void serve_upload_file(int fd, char *filename);
  * @param filetype 输出的文件类型
  */
 void get_filetype(char *filename, char *filetype);
+
+
 #endif // CORE_H

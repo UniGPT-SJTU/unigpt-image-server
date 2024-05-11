@@ -14,6 +14,7 @@ static rio_t rio;
 static char buf[MAXLINE];
 struct server_config server_config;
 
+
 void init_server_config(struct server_config *server_config, const char *protocol, const char *ip, const char *port) {
     server_config->protocol = protocol;
     server_config->ip = ip;
@@ -37,18 +38,19 @@ void doit(int fd) {
         return;
     }
 
-    if(parse_uri(uri, endpoint, filename) == -1) {
+    if(parse_endpoint_from_uri(uri, endpoint) < 0) {
         serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
         return ;
     }
 
-
     if(!strcmp(endpoint, "file") && !strcasecmp(method, "GET") ) {
+        if(parse_static_filename_from_uri(uri, filename) < 0) {
+            serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
+            return;
+        }
         serve_static_file(fd, filename);
-        return ;
     } else if(!strcmp(endpoint, "upload") && !strcasecmp(method, "POST")) {
-        serve_upload_file(fd, filename);
-        return ;
+        serve_upload_file(fd);
     } else {
         serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
     }
@@ -103,6 +105,32 @@ int parse_boundary_from_content_type(const char *content_type, char *boundary) {
     }
     return 0;
 }
+
+int parse_filename_from_request_body(const char *request_body, char *filename) {
+    char *start = strstr(request_body, "filename=\"");
+    if(start == NULL) {
+        return -1;
+    }
+    start += strlen("filename=\"");
+    char *end = strstr(start, "\"");
+    if(end == NULL) {
+        return -1;
+    }
+    strncpy(filename, start, end - start);
+    filename[end - start] = '\0';
+    return 0;
+}
+
+
+int parse_raw_data_from_request_body(const char *request_body, char *raw_data, int *raw_data_size) {
+    raw_data = strstr(request_body, "\r\n\r\n") + 4;
+    if(raw_data) {
+        return -1;
+    }
+
+    return 0;
+    
+}
 int read_request_headers(struct http_header_meta_data *meta_data) {
     rio_readlineb(&rio, buf, MAXLINE);
     while(strcmp(buf, "\r\n")) {
@@ -121,12 +149,17 @@ int read_request_headers(struct http_header_meta_data *meta_data) {
     return 0;
 }
 
-int parse_uri(char *uri, char *endpoint, char *filename) {
-    if(sscanf(uri, "/%[^/]/%s", endpoint, filename) != 2) {
+
+int parse_static_filename_from_uri(char *uri, char *filename) {
+    if(sscanf(uri, "/file/%s", filename) != 1) {
         // 解析uri失败
         return -1;
     }
-    if(strcmp(endpoint, "upload") && strcmp(endpoint, "file")) {
+    return 0;
+}
+
+int parse_endpoint_from_uri(char *uri, char *endpoint) {
+    if(sscanf(uri, "/%[^/]", endpoint) != 1) {
         return -1;
     }
     return 0;
@@ -145,7 +178,7 @@ int gen_unique_str(char *dst) {
 
 
 
-void serve_upload_file(int fd, char *filename) {
+int serve_upload_file(int fd) {
     char request_body[MAXFILESIZE];
 
     struct http_header_meta_data meta_data;
@@ -153,19 +186,27 @@ void serve_upload_file(int fd, char *filename) {
 
     rio_readnb(&rio, request_body, meta_data.content_length);
 
-    // 去除request_body前4行
-    char *rawdata = request_body;
-    for(int i = 0; i < 4; i++) {
-        rawdata = strchr(rawdata, '\n') + 1;
+    printf("Request body:\n");
+    printf("%s", request_body);
+
+    char upload_file_name[MAXLINE];
+    
+    if(parse_filename_from_request_body(request_body, upload_file_name) < 0) {
+        serve_error_response(fd, "", "400", "Bad Request", "Tiny couldn't parse the file name");
+        return -1;
     }
+    // 找到rawdata的起始位置
+    char *rawdata = strstr(request_body, "\r\n\r\n") + 4;
+
+    // TODO: 未去除rawdata之后的数据
 
     // 将raw data写入文件
     char new_file_name[MAXLINE];
     if(gen_unique_str(new_file_name) < 0) {
-        serve_error_response(fd, filename, "500", "Internal Server Error", "Tiny couldn't generate unique file name");
-        return ;
+        serve_error_response(fd, "", "500", "Internal Server Error", "Tiny couldn't generate unique file name");
+        return -1;
     }
-    sprintf(new_file_name, "%s_%s", new_file_name, filename);
+    sprintf(new_file_name, "%s_%s", new_file_name, upload_file_name);
 
     int outputfd = open(new_file_name, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
     write(outputfd, rawdata, meta_data.content_length);
@@ -182,9 +223,11 @@ void serve_upload_file(int fd, char *filename) {
     );
 
     serve_json_response(fd, "200", response);
+    
+    return 0;
 }
 
-void serve_static_file(int fd, char *filename) {
+int serve_static_file(int fd, char *filename) {
     struct http_header_meta_data meta_data;
     read_request_headers(&meta_data);
 
@@ -192,12 +235,12 @@ void serve_static_file(int fd, char *filename) {
     struct stat sbuf;
     if(stat(filename, &sbuf) < 0) {
         serve_error_response(fd, filename, "404", "Not found", "No such file");
-        return ;
+        return -1;
     }
 
     if(!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
         serve_error_response(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
-        return ;
+        return -1;
     }
     int filesize = sbuf.st_size;
     int srcfd;
@@ -218,6 +261,8 @@ void serve_static_file(int fd, char *filename) {
     close(srcfd);
     rio_writen(fd, srcp, filesize);
     munmap(srcp, filesize);
+
+    return 0;
 }
 
 void get_filetype(char *filename, char *filetype) {
