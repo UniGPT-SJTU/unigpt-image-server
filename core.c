@@ -9,6 +9,7 @@
 #include "config.h"
 #include "csapp.h"
 #include "core.h"
+#include "logger.h"
 
 static rio_t rio;
 static char buf[MAXLINE];
@@ -21,39 +22,43 @@ void init_server_config(struct server_config *server_config, const char *protoco
     server_config->port = port;
 }
 
-void doit(int fd) {
+void handle_http_request(int fd) {
     char method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     char endpoint[MAXLINE] = {};
     char filename[MAXLINE] = {};
 
     rio_readinitb(&rio, fd);
+    // 读取请求行(request line)
     rio_readlineb(&rio, buf, MAXLINE);
-    printf("Request headers:\n");
-    printf("%s", buf);
     sscanf(buf, "%s %s %s", method, uri, version);
 
-    if(strcasecmp(method, "GET") && strcasecmp(method, "POST")) {
-        serve_error_response(fd, method, "405", "Method Not Allowed", 
-            "Tiny does not implement this method");
-        return;
-    }
-
     if(parse_endpoint_from_uri(uri, endpoint) < 0) {
-        serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
+        LOG_ERROR("Parse endpoint from uri error");
+        LOG_ERROR("uri: %s", uri);
+        serve_error_response(fd, uri, "400", "Bad Request", "Parse endpoint from uri error");
         return ;
     }
 
-    if(!strcmp(endpoint, "file") && !strcasecmp(method, "GET") ) {
-        if(parse_static_filename_from_uri(uri, filename) < 0) {
-            serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
+    if(!strcasecmp(method, "GET") && !strcmp(endpoint, "file")) {
+        // GET /file/<filename>
+         if(parse_static_filename_from_uri(uri, filename) < 0) {
+            LOG_ERROR("Parse file name from uri error");
+            serve_error_response(fd, uri, "400", "Bad Request", "Parse file name from uri error");
             return;
         }
         serve_static_file(fd, filename);
-    } else if(!strcmp(endpoint, "upload") && !strcasecmp(method, "POST")) {
-        serve_upload_file(fd);
-    } else {
-        serve_error_response(fd, uri, "400", "Bad Request", "Tiny couldn't parse the uri");
+        return ;
     }
+
+    if(!strcasecmp(method, "POST") && !strcmp(endpoint, "upload")) {
+        // POST /upload
+        serve_upload_file(fd);
+        return ;
+    }
+
+    // 无法处理的请求
+    LOG_ERROR("Unable to handle the request");
+    serve_error_response(fd, uri, "400", "Bad Request", "Unable to handle the request");
 }
 
 
@@ -89,14 +94,6 @@ void serve_json_response(int fd, char *status_code, char *json) {
     printf("%s", buf);
     
     rio_writen(fd, json, json_len);
-}
-
-void read_requesthdrs(rio_t *rp) {
-    rio_readlineb(rp, buf, MAXLINE);
-    while(strcmp(buf, "\r\n")) {
-        rio_readlineb(rp, buf, MAXLINE);
-        printf("%s", buf);
-    }
 }
 
 int parse_boundary_from_content_type(const char *content_type, char *boundary) {
@@ -203,6 +200,7 @@ int serve_upload_file(int fd) {
     // 将raw data写入文件
     char new_file_name[MAXLINE];
     if(gen_unique_str(new_file_name) < 0) {
+        LOG_ERROR("Tiny couldn't generate unique file name");
         serve_error_response(fd, "", "500", "Internal Server Error", "Tiny couldn't generate unique file name");
         return -1;
     }
@@ -234,11 +232,13 @@ int serve_static_file(int fd, char *filename) {
 
     struct stat sbuf;
     if(stat(filename, &sbuf) < 0) {
+        LOG_ERROR("No such file: %s", filename);
         serve_error_response(fd, filename, "404", "Not found", "No such file");
         return -1;
     }
 
     if(!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
+        LOG_ERROR("Forbidden to read the file: %s", filename);
         serve_error_response(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
         return -1;
     }

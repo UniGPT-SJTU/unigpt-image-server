@@ -3,11 +3,27 @@
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
 
 #include "config.h"
 #include "socket.h"
+#include "logger.h"
 
-int open_listenfd(char *port) {
+static int open_listenfd(char *port);
+
+int open_listenfd_w(char *port) {
+    int listenfd;
+
+    if((listenfd = open_listenfd(port)) < 0) {
+        LOG_ERROR(strerror(errno));
+        exit(1);
+    }
+
+    return listenfd;
+}
+
+static int open_listenfd(char *port) {
 
     struct addrinfo hints, *listp, *p;
     int listenfd, optval = 1;
@@ -19,7 +35,7 @@ int open_listenfd(char *port) {
 
     for(p = listp; p; p = p->ai_next) {
         if((listenfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
-            // Socket 连接失败，尝试下一个
+            LOG_ERROR(strerror(errno));
             continue;
         }
 

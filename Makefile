@@ -1,30 +1,25 @@
-# Compiler
 CC := gcc
 
-# Compiler flags
 CFLAGS := -Wall -Wextra -std=gnu99 -g 
 
-# Source files
-SRCS := main.c core.c socket.c csapp.c
 
-# Object files
-OBJS := $(SRCS:.c=.o)
+tiny: main.c logger.o core.o socket.o csapp.o
+	$(CC) $(CFLAGS) main.c logger.o core.o socket.o csapp.o -o tiny
 
-# Executable name
-TARGET := webserver
+run: tiny
+	./tiny 10339
 
-# Default target
-all: $(TARGET)
-run: $(TARGET)
-	./$(TARGET) 10339
-# Compile source files into object files
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+logger.o : logger.c logger.h
+	$(CC) $(CFLAGS) -DENABLE_LOG -c logger.c -o logger.o
 
-# Link object files into executable
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@
+core.o: core.c core.h
+	$(CC) $(CFLAGS) -c core.c -o core.o
 
-# Clean up object files and executable
+socket.o: socket.c socket.h
+	$(CC) $(CFLAGS) -c socket.c -o socket.o
+
+csapp.o: csapp.c csapp.h
+	$(CC) $(CFLAGS) -c csapp.c -o csapp.o
+
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f *.o tiny

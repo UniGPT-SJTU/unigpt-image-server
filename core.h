@@ -37,7 +37,7 @@ extern struct server_config server_config;
  */
 void init_server_config(struct server_config* server_config_ptr, const char *protocol, const char *ip, const char *port);
 
-void doit(int fd);
+void handle_http_request(int fd);
 
 /**
  * @brief 客户端错误响应
