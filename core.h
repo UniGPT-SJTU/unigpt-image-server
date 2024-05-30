@@ -60,6 +60,15 @@ void serve_error_response(int fd, char *cause, char *errnum, char *shortmsg, cha
 void serve_json_response(int fd, char *status_code, char *json);
 
 /**
+ * @brief 向客户端返回文件响应，默认200状态码
+ * 
+ * @param fd 客户端连接的文件描述符
+ * @param filename 映射的文件名
+ * @param filesize 映射的文件大小
+ */
+void serve_file_response(int fd, const char *filename, const char *filesize);
+
+/**
  * @brief 从multipart/form-data内容类型中解析"boundary"字符串
  * 
  * @param content_type 
@@ -77,7 +86,14 @@ int parse_boundary_from_content_type(const char *content_type, char *boundary);
  */
 int parse_filename_from_request_body(const char *request_body, char *filename);
 
-
+/**
+ * @brief 从request_body中解析文件数据,写入raw_data
+ * 
+ * @param request_body 
+ * @param raw_data 
+ * @param raw_data_size 
+ * @return int 
+ */
 int parse_raw_data_from_request_body(const char *request_body, char *raw_data, int *raw_data_size);
 
 /**

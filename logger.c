@@ -7,6 +7,14 @@
 static void logger_log(FILE *output, const char *type, const char *func, const char *format, va_list args);
 
 #ifdef ENABLE_LOG
+void logger_debug(const char *func, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    logger_log(stdout, "DEBUG", func, format, args);
+    fprintf(stdout, "\n");
+    va_end(args);
+}
 void logger_info(const char *func, const char *format, ...)
 {
     va_list args;
@@ -43,6 +51,9 @@ static void logger_log(FILE *output,const char *type, const char *func,  const c
     vfprintf(output, format, args);
 }
 #else 
+void logger_debug(const char *func, const char *format, ...)
+{
+}
 void logger_info(const char *func, const char *format, ...)
 {
 }
