@@ -5,14 +5,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 #include "config.h"
 #include "csapp.h"
 #include "core.h"
 #include "logger.h"
 
-static rio_t rio;
-static char buf[MAXLINE];
+static __thread rio_t rio;
+static __thread char buf[MAXLINE];
 server_config_t server_config;
 
 int parse_endpoint_from_uri(char *uri, char *endpoint)
