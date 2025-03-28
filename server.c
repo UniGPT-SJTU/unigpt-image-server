@@ -38,8 +38,10 @@ int main(int argc, char **argv) {
     init_server_config(&server_config, SERVER_PROTOCOL, SERVER_IP, argv[1]);
     listenfd = open_listenfd(server_config.port);
 
-    int thread_idx = 0;
-    pthread_t threads[MAX_THREAD];
+    pthread_t tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     while(1) {
         clientlen = sizeof(clientaddr);
         connfd = (int *) malloc(sizeof(int));
@@ -59,15 +61,7 @@ int main(int argc, char **argv) {
             0
         );
         LOG_INFO("Accepted connection from (%s, %s)", hostname, port);
-        pthread_create(&threads[thread_idx], NULL, thread_work, connfd);
-        ++ thread_idx;
-        if(thread_idx == MAX_THREAD) {
-            // join all threads
-            for(int i = 0;i < MAX_THREAD; ++i) {
-                pthread_join(threads[i], NULL);
-            }
-            thread_idx = 0;
-        }
+        pthread_create(&tid, &attr, thread_work, connfd);
     }
     
 }
