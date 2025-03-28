@@ -6,7 +6,7 @@ import glob
 
 SERVER_URL = "http://127.0.0.1:10339"
 
-TEST_FILE = "scripts/flower.jpg"
+TEST_FILE = "scripts/road.png"
 
 NUM_THREADS = 16
 
