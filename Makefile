@@ -1,6 +1,6 @@
 CC := gcc
 
-CFLAGS := -Wall -Wextra -std=gnu99 -O3
+CFLAGS := -Wall -Wextra -std=gnu99 -O3 -Wformat-truncation=0
 
 
 tiny: main.c logger.o core.o socket.o csapp.o
