@@ -1,12 +1,14 @@
 import requests
 import time
 import threading
+import os
+import glob
 
 SERVER_URL = "http://127.0.0.1:10339"
 
-TEST_FILE = "scripts/test_image.jpg"
+TEST_FILE = "scripts/flower.jpg"
 
-NUM_THREADS = 1
+NUM_THREADS = 16
 
 REQUESTS_PER_THREAD = 50
 
@@ -69,5 +71,12 @@ if __name__ == "__main__":
     print("Testing GET requests...")
     run_test(test_get_file)
 
-    print("Testing POST requests...")
-    run_test(test_post_upload)
+    # print("Testing POST requests...")
+    # run_test(test_post_upload)
+
+    # Remove files matching the pattern "upload_*"
+    for file in glob.glob("upload_*"):
+        try:
+            os.remove(file)
+        except Exception as e:
+            print(f"Error removing file {file}: {e}")

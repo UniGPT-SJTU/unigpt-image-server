@@ -210,14 +210,15 @@ int parse_static_filename_from_uri(char *uri, char *filename)
 
 int gen_unique_str(char *dst)
 {
-    strcpy(dst, FILE_TEMPLATE);
-    int tempfd = mkstemp(dst);
+    char temp_template[] = "/tmp/" FILE_TEMPLATE;
+    int tempfd = mkstemp(temp_template);
     if (tempfd < 0)
     {
         return -1;
     }
     close(tempfd);
-    unlink(dst);
+    unlink(temp_template);
+    strncpy(dst, temp_template + 5, strlen(temp_template + 5) + 1);
     return 0;
 }
 

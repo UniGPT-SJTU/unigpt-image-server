@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "logger.h": "c",
+        "config.h": "c",
+        "stdlib.h": "c",
+        "unistd.h": "c"
+    }
+}

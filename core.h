@@ -34,7 +34,6 @@ int read_request_headers(http_header_meta_t *meta_data);
 
 int parse_static_filename_from_uri(char *uri, char *filename);
 
-// generate a unique 6-byte string
 int gen_unique_str(char *dst);
 
 int serve_static_file(int connfd, char *filename);
