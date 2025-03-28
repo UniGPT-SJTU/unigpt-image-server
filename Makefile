@@ -1,6 +1,6 @@
 CC := gcc
 
-CFLAGS := -Wall -Wextra -std=gnu99 -O3 -Wformat-truncation=0
+CFLAGS := -Wall -Wextra -std=gnu99 -O3 -Wformat-truncation=0 -pthread
 
 
 tiny-server: server.c logger.o core.o socket.o csapp.o
