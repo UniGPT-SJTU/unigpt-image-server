@@ -266,6 +266,7 @@ int serve_upload_file(int connfd)
     int outputfd = open(new_file_name, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
     if (write(outputfd, rawdata, meta_data.content_length) < 0)
     {
+        LOG_ERROR("save to server disk failed");
         serve_error_response(connfd, "", "400", "Bad Request", "save to server disk failed");
         close(outputfd);
         return -1;

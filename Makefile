@@ -3,11 +3,11 @@ CC := gcc
 CFLAGS := -Wall -Wextra -std=gnu99 -O3 -Wformat-truncation=0
 
 
-tiny: main.c logger.o core.o socket.o csapp.o
-	$(CC) $(CFLAGS) main.c logger.o core.o socket.o csapp.o -o tiny
+tiny-server: server.c logger.o core.o socket.o csapp.o
+	$(CC) $(CFLAGS) server.c logger.o core.o socket.o csapp.o -o tiny-server
 
-run: tiny
-	./tiny 10339
+run: tiny-server
+	./tiny-server 10339
 
 logger.o : logger.c logger.h
 	$(CC) $(CFLAGS) -DENABLE_LOG -c logger.c -o logger.o
