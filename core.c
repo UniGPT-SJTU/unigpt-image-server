@@ -13,10 +13,17 @@
 
 static rio_t rio;
 static char buf[MAXLINE];
-struct server_config server_config;
+server_config_t server_config;
+
+int parse_endpoint_from_uri(char *uri, char *endpoint) {
+    if(sscanf(uri, "/%[^/]", endpoint) != 1) {
+        return -1;
+    }
+    return 0;
+}
 
 
-void init_server_config(struct server_config *server_config, const char *protocol, const char *ip, const char *port) {
+void init_server_config(server_config_t *server_config, char *protocol, char *ip, char *port) {
     server_config->protocol = protocol;
     server_config->ip = ip;
     server_config->port = port;
@@ -97,7 +104,7 @@ void serve_json_response(int fd, char *status_code, char *json) {
     rio_writen(fd, json, json_len);
 }
 
-void serve_file_response(int fd, const char *filename, const char *filesize) {
+void serve_file_response(int fd, char *filename, ssize_t filesize) {
     int srcfd;
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
 
@@ -119,14 +126,14 @@ void serve_file_response(int fd, const char *filename, const char *filesize) {
     munmap(srcp, filesize);
 }
 
-int parse_boundary_from_content_type(const char *content_type, char *boundary) {
+int parse_boundary_from_content_type(char *content_type, char *boundary) {
     if(sscanf(content_type, "multipart/form-data; boundary=%s", boundary) != 1) {
         return -1;
     }
     return 0;
 }
 
-int parse_filename_from_request_body(const char *request_body, char *filename) {
+int parse_filename_from_request_body(char *request_body, char *filename) {
     char *start = strstr(request_body, "filename=\"");
     if(start == NULL) {
         return -1;
@@ -142,7 +149,7 @@ int parse_filename_from_request_body(const char *request_body, char *filename) {
 }
 
 
-int parse_raw_data_from_request_body(const char *request_body, char *raw_data, int *raw_data_size) {
+int parse_raw_data_from_request_body(char *request_body, char *raw_data, int *raw_data_size) {
     raw_data = strstr(request_body, "\r\n\r\n") + 4;
     if(raw_data) {
         return -1;
@@ -151,7 +158,7 @@ int parse_raw_data_from_request_body(const char *request_body, char *raw_data, i
     return 0;
     
 }
-int read_request_headers(struct http_header_meta_data *meta_data) {
+int read_request_headers(http_header_meta_t *meta_data) {
     while(1) {
         rio_readlineb(&rio, buf, MAXLINE);
         LOG_DEBUG("%s", buf);
@@ -184,12 +191,7 @@ int parse_static_filename_from_uri(char *uri, char *filename) {
     return 0;
 }
 
-int parse_endpoint_from_uri(char *uri, char *endpoint) {
-    if(sscanf(uri, "/%[^/]", endpoint) != 1) {
-        return -1;
-    }
-    return 0;
-}
+
 
 int gen_unique_str(char *dst) {
     strcpy(dst, FILE_TEMPLATE);
@@ -207,7 +209,7 @@ int gen_unique_str(char *dst) {
 int serve_upload_file(int fd) {
     char request_body[MAXFILESIZE];
 
-    struct http_header_meta_data meta_data;
+    http_header_meta_t meta_data;
     read_request_headers(&meta_data);
 
     rio_readnb(&rio, request_body, meta_data.content_length);
@@ -256,7 +258,7 @@ int serve_upload_file(int fd) {
 }
 
 int serve_static_file(int fd, char *filename) {
-    struct http_header_meta_data meta_data;
+    http_header_meta_t meta_data;
     read_request_headers(&meta_data);
 
     struct stat sbuf;

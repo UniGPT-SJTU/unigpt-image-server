@@ -9,6 +9,8 @@
 #include "core.h"
 #include "logger.h"
 
+extern server_config_t server_config;
+
 int main(int argc, char **argv) {
     int listenfd, connfd;
     char hostname[MAXLINE], port[MAXLINE];
@@ -20,7 +22,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
     init_server_config(&server_config, SERVER_PROTOCOL, SERVER_IP, argv[1]);
-    listenfd = open_listenfd_w(server_config.port);
+    listenfd = open_listenfd(server_config.port);
 
     while(1) {
         clientlen = sizeof(clientaddr);

@@ -1,21 +1,21 @@
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <netdb.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <netdb.h>
 
 #include "config.h"
 #include "socket.h"
 #include "logger.h"
 
-static int open_listenfd(char *port);
+static int _open_listenfd(char *port);
 
-int open_listenfd_w(char *port) {
+int open_listenfd(char *port) {
     int listenfd;
 
-    if((listenfd = open_listenfd(port)) < 0) {
+    if((listenfd = _open_listenfd(port)) < 0) {
         LOG_ERROR(strerror(errno));
         exit(1);
     }
@@ -23,7 +23,7 @@ int open_listenfd_w(char *port) {
     return listenfd;
 }
 
-static int open_listenfd(char *port) {
+static int _open_listenfd(char *port) {
 
     struct addrinfo hints, *listp, *p;
     int listenfd, optval = 1;
@@ -43,10 +43,11 @@ static int open_listenfd(char *port) {
                    (const void *)&optval, sizeof(int));
 
         if(bind(listenfd, p->ai_addr, p->ai_addrlen) == 0) {
-            // 绑定成功
             break;
         }
-        close(listenfd);    // 绑定失败，关闭连接
+
+        // bind failure, so close conn
+        close(listenfd);   
     }
 
     freeaddrinfo(listp);

@@ -7,5 +7,5 @@
 #define MAXFILESIZE (5 << 20) // 5MB
 #define FILE_TEMPLATE "upload_XXXXXX"
 #define SERVER_PROTOCOL "http"
-#define SERVER_IP "10.119.12.131"
+#define SERVER_IP "localhost"
 #endif // CONFIG_H
