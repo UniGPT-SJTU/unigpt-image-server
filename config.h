@@ -9,4 +9,6 @@
 #define FILE_TEMPLATE "upload_XXXXXX"
 #define SERVER_PROTOCOL "http"
 #define SERVER_IP "localhost"
+#define SERVER_PORT "10339"
+#define SERVER_BASE_DIR "./"
 #endif // CONFIG_H

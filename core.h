@@ -14,9 +14,12 @@ typedef struct
     char *protocol;
     char *ip;
     char *port;
+    char *base_dir;
 } server_config_t;
 
-void init_server_config(server_config_t *server_config_ptr, char *protocol, char *ip, char *port);
+int init_server_config(server_config_t *server_config, int argc, char *argv[]);
+
+void free_server_config(server_config_t *server_config);
 
 int handle_http_request(int fd);
 
@@ -41,5 +44,7 @@ int serve_static_file(int connfd, char *filename);
 int serve_upload_file(int connfd);
 
 void get_filetype(char *filename, char *filetype);
+
+void usage(char *exec);
 
 #endif // CORE_H

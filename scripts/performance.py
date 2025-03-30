@@ -6,11 +6,11 @@ import glob
 
 SERVER_URL = "http://127.0.0.1:10339"
 
-TEST_FILE = "scripts/road.png"
+TEST_FILE = "file2g.dat"
 
 NUM_THREADS = 16
 
-REQUESTS_PER_THREAD = 50
+REQUESTS_PER_THREAD = 1
 
 def test_get_file():
     url = f"{SERVER_URL}/file/{TEST_FILE}"

@@ -24,11 +24,63 @@ int parse_endpoint_from_uri(char *uri, char *endpoint)
     return 0;
 }
 
-void init_server_config(server_config_t *server_config, char *protocol, char *ip, char *port)
+int init_server_config(server_config_t *server_config, int argc, char *argv[])
 {
-    server_config->protocol = protocol;
-    server_config->ip = ip;
-    server_config->port = port;
+    server_config->protocol = server_config->ip = server_config->port = server_config->base_dir = NULL;
+
+    void *init_member = NULL;
+    for(int i = 1;i < argc; ++i) {
+        if(!init_member) {
+            if(strcmp(argv[i], "--protocol") == 0) {
+                init_member = &server_config->protocol;
+            } else if(strcmp(argv[i], "--ip") == 0) {
+                init_member = &server_config->ip;
+            } else if(strcmp(argv[i], "--port") == 0) {
+                init_member = &server_config->port;
+            } else if(strcmp(argv[i], "--base-dir") == 0) {
+                init_member = &server_config->base_dir;
+                // FIXME: base_dir must ended with / 
+            } else {
+                LOG_ERROR("unknown option %s", argv[i]);
+                return -1;
+            }
+        } else {
+            *(char **) init_member = (char *) malloc(strlen(argv[i] + 1));
+            strcpy(*(char **) init_member, argv[i]);
+            init_member = NULL;
+        }
+    }
+    if(init_member) {
+        LOG_ERROR("one config not initialized");
+        return -1;
+    }
+
+    // default init
+    if(!server_config->protocol) {
+        server_config->protocol = (char *) malloc(strlen(SERVER_PROTOCOL) + 1);
+        strcpy(server_config->protocol, SERVER_PROTOCOL);
+    }
+    if (!server_config->ip) {
+        server_config->ip = (char *)malloc(strlen(SERVER_IP) + 1);
+        strcpy(server_config->ip, SERVER_IP);
+    }
+    if (!server_config->port) {
+        server_config->port = (char *)malloc(strlen(SERVER_PORT) + 1);
+        strcpy(server_config->port, SERVER_PORT);
+    }
+    if (!server_config->base_dir) {
+        server_config->base_dir = (char *)malloc(strlen(SERVER_BASE_DIR) + 1);
+        strcpy(server_config->base_dir, SERVER_BASE_DIR);
+    }
+
+    return 0;
+}
+
+void free_server_config(server_config_t *server_config) {
+    free(server_config->protocol);
+    free(server_config->ip);
+    free(server_config->port);
+    free(server_config->base_dir);
 }
 
 int handle_http_request(int connfd)
@@ -201,7 +253,8 @@ int read_request_headers(http_header_meta_t *meta_data)
 
 int parse_static_filename_from_uri(char *uri, char *filename)
 {
-    if (sscanf(uri, "/file/%s", filename) != 1)
+    strcpy(filename, server_config.base_dir);
+    if (sscanf(uri, "/file/%s", filename + strlen(server_config.base_dir)) != 1)
     {
         return -1;
     }
@@ -339,4 +392,9 @@ void get_filetype(char *filename, char *filetype)
     {
         strcpy(filetype, "text/plain");
     }
+}
+
+void usage(char *exec)
+{
+    printf("%s --protocol <PROTOCOL> --ip <IP> --port <PORT> --base-dir <BASE_DIR> \n", exec);
 }
