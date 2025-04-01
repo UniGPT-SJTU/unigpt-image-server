@@ -1,13 +1,13 @@
 CC := gcc
 
-CFLAGS := -Wall -Wextra -std=gnu99 -O3 -Wformat-truncation=0 -pthread
+CFLAGS := -Wall -Wextra -std=gnu99 -O3 -Wformat-truncation=0 -pthread -g
 
 
 tiny-server: server.c logger.o core.o socket.o csapp.o
 	$(CC) $(CFLAGS) server.c logger.o core.o socket.o csapp.o -o tiny-server
 
 run: tiny-server
-	./tiny-server 10339
+	./tiny-server
 
 logger.o : logger.c logger.h
 	$(CC) $(CFLAGS) -DENABLE_LOG -c logger.c -o logger.o

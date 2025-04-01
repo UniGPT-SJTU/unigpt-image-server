@@ -3,7 +3,7 @@
 
 #define LISTENQ 1024
 #define MAXLINE 1024
-#define SHORTLINE 64
+#define SHORTLINE 256
 #define MAXBUF 1024
 #define MAXFILESIZE (5 << 20) // 5MB
 #define FILE_TEMPLATE "upload_XXXXXX"

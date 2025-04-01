@@ -45,7 +45,7 @@ int init_server_config(server_config_t *server_config, int argc, char *argv[])
                 return -1;
             }
         } else {
-            *(char **) init_member = (char *) malloc(strlen(argv[i] + 1));
+            *(char **) init_member = (char *) malloc(strlen(argv[i]) + 1);
             strcpy(*(char **) init_member, argv[i]);
             init_member = NULL;
         }
@@ -396,5 +396,5 @@ void get_filetype(char *filename, char *filetype)
 
 void usage(char *exec)
 {
-    printf("%s --protocol <PROTOCOL> --ip <IP> --port <PORT> --base-dir <BASE_DIR> \n", exec);
+    printf("Usage: %s --protocol <PROTOCOL> --ip <IP> --port <PORT> --base-dir <BASE_DIR> \n", exec);
 }
